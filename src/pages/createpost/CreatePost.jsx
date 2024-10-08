@@ -13,7 +13,7 @@ import React, { useEffect, useState } from "react";
 import { db } from "../../slice/config";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { FaTrashAlt, FaEdit } from "react-icons/fa";
-import Sidebar from "../sidebar/sidebar";
+import Sidebar from "../sidebar/Sidebar";
 
 const CreatePost = () => {
   const [posts, setPosts] = useState({ image: "", desc: "" });

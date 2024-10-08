@@ -17,7 +17,7 @@ import {
   FaTrashAlt,
 } from "react-icons/fa"; // Added FaTrashAlt for delete icon
 import { getAuth, onAuthStateChanged } from "firebase/auth";
-import Sidebar from "../sidebar/sidebar";
+import Sidebar from "../sidebar/Sidebar";
 
 const Home = () => {
   const [posts, setPosts] = useState([]);

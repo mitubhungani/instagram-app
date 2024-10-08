@@ -12,7 +12,7 @@ import {
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { FaRegCommentAlt, FaRegHeart, FaHeart } from "react-icons/fa"; // Import both filled and unfilled heart icons
 import { useParams } from "react-router-dom";
-import Sidebar from "../sidebar/sidebar";
+import Sidebar from "../sidebar/Sidebar";
 
 const Profilepage = () => {
   const [userData, setUserData] = useState({}); // State to store the user data
