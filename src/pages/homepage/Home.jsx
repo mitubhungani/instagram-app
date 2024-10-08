@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from "react";
-import Sidebar from "../sidebar/sidebar";
 import {
   collection,
   getDocs,
@@ -18,6 +17,7 @@ import {
   FaTrashAlt,
 } from "react-icons/fa"; // Added FaTrashAlt for delete icon
 import { getAuth, onAuthStateChanged } from "firebase/auth";
+import Sidebar from "../sidebar/sidebar";
 
 const Home = () => {
   const [posts, setPosts] = useState([]);
