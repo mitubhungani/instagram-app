@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from "react";
-import Sidebar from "../sidebar/sidebar";
 import { db } from "../../slice/config";
 import {
   collection,
@@ -13,6 +12,7 @@ import {
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { FaRegCommentAlt, FaRegHeart, FaHeart } from "react-icons/fa"; // Import both filled and unfilled heart icons
 import { useParams } from "react-router-dom";
+import Sidebar from "../sidebar/sidebar";
 
 const Profilepage = () => {
   const [userData, setUserData] = useState({}); // State to store the user data
