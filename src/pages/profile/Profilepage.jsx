@@ -12,16 +12,20 @@ import {
 } from "firebase/firestore";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { FaRegCommentAlt, FaRegHeart, FaHeart } from "react-icons/fa"; // Import both filled and unfilled heart icons
+import { useParams } from "react-router-dom";
 
 const Profilepage = () => {
   const [userData, setUserData] = useState({}); // State to store the user data
   const [loading, setLoading] = useState(true);
   const [postCount, setPostCount] = useState(0); // State to store the post count
+  const [followingCount, setFollowingCount] = useState(0); // State to store following count
   const [posts, setPosts] = useState([]); // State to store the user's posts
   const [isEditing, setIsEditing] = useState(false); // State to control edit mode
   const [newUsername, setNewUsername] = useState(""); // State for new username
   const [newProfilePicURL, setNewProfilePicURL] = useState(""); // State for new profile picture URL
   const auth = getAuth(); // Get the current authenticated user
+
+  const { id } = useParams();
 
   // Function to fetch user data from Firestore based on UID
   const fetchUserData = async (uid) => {
@@ -30,10 +34,12 @@ const Profilepage = () => {
       const userDoc = await getDoc(userDocRef); // Get the user document
 
       if (userDoc.exists()) {
-        setUserData(userDoc.data()); // Set the user's data
-        setPostCount(userDoc.data().postCount || 0); // Get post count from user document
-        setNewUsername(userDoc.data().username); // Initialize new username with current username
-        setNewProfilePicURL(userDoc.data().profilePicURL || ""); // Initialize with current profile picture
+        const data = userDoc.data();
+        setUserData(data); // Set the user's data
+        setPostCount(data.postCount || 0); // Get post count from user document
+        setFollowingCount(data.following?.length || 0); // Get following count from user document
+        setNewUsername(data.username); // Initialize new username with current username
+        setNewProfilePicURL(data.profilePicURL || ""); // Initialize with current profile picture
       } else {
         console.log("No such user document!");
       }
@@ -150,7 +156,8 @@ const Profilepage = () => {
           <div className="ml-4">
             <h1 className="text-3xl font-bold">{userData.username}</h1>
             <div className="flex space-x-4 mt-2">
-              <p>Followers: {userData.followers?.length || 0}</p>
+              <p>Followers: {userData.followers?.length || 0}</p> {/* Display followers count */}
+              <p>Following: {followingCount}</p> {/* Display following count */}
               <p>Posts: {postCount}</p>
             </div>
           </div>

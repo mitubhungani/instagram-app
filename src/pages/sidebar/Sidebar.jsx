@@ -149,7 +149,7 @@ const Sidebar = () => {
   };
 
   return (
-    <div>
+    <div className="w-full">
       {/* Toggle Button for Mobile Screens */}
       <button
         className="block lg:hidden p-2 text-white bg-black fixed top-4 left-4 z-20"

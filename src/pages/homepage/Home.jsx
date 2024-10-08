@@ -1,76 +1,86 @@
 import React, { useEffect, useState } from "react";
 import Sidebar from "../sidebar/sidebar";
-import { collection, getDocs, query, updateDoc, doc, arrayUnion } from "firebase/firestore"; // Firestore functions
-import { db } from "../../slice/config"; // Firestore instance
+import {
+  collection,
+  getDocs,
+  query,
+  updateDoc,
+  doc,
+  arrayUnion,
+  arrayRemove,
+} from "firebase/firestore"; // Added arrayRemove for comment deletion
+import { db } from "../../slice/config";
 import RightSidebar from "../sidebar/RightSidebar";
-import { FaRegCommentAlt, FaRegHeart, FaHeart } from "react-icons/fa"; // Icons
-import { getAuth, onAuthStateChanged } from "firebase/auth"; // Firebase auth to get UID
+import {
+  FaRegCommentAlt,
+  FaRegHeart,
+  FaHeart,
+  FaTrashAlt,
+} from "react-icons/fa"; // Added FaTrashAlt for delete icon
+import { getAuth, onAuthStateChanged } from "firebase/auth";
 
 const Home = () => {
-  const [posts, setPosts] = useState([]); // Store posts
-  const [loading, setLoading] = useState(true); // Track loading state
-  const [currentUser, setCurrentUser] = useState(null); // Store current user UID
-  const [commentText, setCommentText] = useState({}); // Store comment input for each post
-  const [showComments, setShowComments] = useState({}); // Track visibility of comments for each post
-  const [users, setUsers] = useState({}); // Store usernames and profile pictures of users
+  const [posts, setPosts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [currentUser, setCurrentUser] = useState(null);
+  const [commentText, setCommentText] = useState({});
+  const [showComments, setShowComments] = useState({});
+  const [users, setUsers] = useState({});
 
-  // Function to fetch all users with their usernames and profile pictures
   const getUsers = async () => {
-    const userQuery = query(collection(db, "users")); // Adjust collection name as needed
+    const userQuery = query(collection(db, "users"));
     const userSnapshot = await getDocs(userQuery);
     const userData = {};
     userSnapshot.docs.forEach((doc) => {
       userData[doc.id] = {
         username: doc.data().username,
-        profilePicURL: doc.data().profilePicURL, // Assuming profilePicURL is stored under 'profilePicURL' field
+        profilePicURL: doc.data().profilePicURL,
       };
     });
-    setUsers(userData); // Set usernames and profile pictures
+    setUsers(userData);
   };
 
-  // Function to fetch all posts
   const getPosts = async () => {
     try {
       setLoading(true);
-
-      // Query to get posts from Firestore
       const q = query(collection(db, "post"));
       const postsRef = await getDocs(q);
       const postData = postsRef.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
       }));
-
-      setPosts(postData); // Set posts after fetching
-      setLoading(false); // Stop loading
+      setPosts(postData);
+      setLoading(false);
     } catch (error) {
       console.error("Error fetching posts: ", error);
-      setLoading(false); // Stop loading if error occurs
+      setLoading(false);
     }
   };
 
-  // Function to toggle like/unlike a post
   const handleLikeToggle = async (postId, currentLikes, likedBy) => {
     try {
-      const postRef = doc(db, "post", postId); // Get post reference
-      const hasLiked = likedBy.includes(currentUser); // Check if current user has liked the post
+      const postRef = doc(db, "post", postId);
+      const hasLiked = likedBy.includes(currentUser);
       let newLikesCount, updatedLikedBy;
 
       if (hasLiked) {
         newLikesCount = currentLikes - 1;
-        updatedLikedBy = likedBy.filter((user) => user !== currentUser); // Remove user from likedBy list
+        updatedLikedBy = likedBy.filter((user) => user !== currentUser);
       } else {
         newLikesCount = currentLikes + 1;
-        updatedLikedBy = [...likedBy, currentUser]; // Add user to likedBy list
+        updatedLikedBy = [...likedBy, currentUser];
       }
 
-      // Update likes in Firestore
-      await updateDoc(postRef, { likes: newLikesCount, likedBy: updatedLikedBy });
+      await updateDoc(postRef, {
+        likes: newLikesCount,
+        likedBy: updatedLikedBy,
+      });
 
-      // Update local state
       setPosts((prevPosts) =>
         prevPosts.map((post) =>
-          post.id === postId ? { ...post, likes: newLikesCount, likedBy: updatedLikedBy } : post
+          post.id === postId
+            ? { ...post, likes: newLikesCount, likedBy: updatedLikedBy }
+            : post
         )
       );
     } catch (error) {
@@ -78,26 +88,21 @@ const Home = () => {
     }
   };
 
-  // Function to handle comment input
   const handleCommentChange = (e, postId) => {
-    setCommentText({ ...commentText, [postId]: e.target.value }); // Update comment input for the specific post
+    setCommentText({ ...commentText, [postId]: e.target.value });
   };
 
-  // Function to add a comment to a post
   const handleAddComment = async (postId, currentComments) => {
     try {
       const comment = {
-        text: commentText[postId], // Get the comment text for the specific post
-        commentedBy: currentUser, // The current user's UID
-        timestamp: new Date(), // The current timestamp
+        text: commentText[postId],
+        commentedBy: currentUser,
+        timestamp: new Date(),
       };
 
-      const postRef = doc(db, "post", postId); // Get post reference
-
-      // Update Firestore with the new comment (using arrayUnion to append to the comments array)
+      const postRef = doc(db, "post", postId);
       await updateDoc(postRef, { comments: arrayUnion(comment) });
 
-      // Update the local state
       setPosts((prevPosts) =>
         prevPosts.map((post) =>
           post.id === postId
@@ -106,48 +111,73 @@ const Home = () => {
         )
       );
 
-      // Clear the comment input after submitting
       setCommentText({ ...commentText, [postId]: "" });
     } catch (error) {
       console.error("Error adding comment: ", error);
     }
   };
 
-  // Function to toggle the visibility of comments
+  // Function to delete a comment
+  const handleDeleteComment = async (postId, comment) => {
+    try {
+      const postRef = doc(db, "post", postId);
+
+      // Update Firestore by removing the comment
+      await updateDoc(postRef, { comments: arrayRemove(comment) });
+
+      // Update local state
+      setPosts((prevPosts) =>
+        prevPosts.map((post) =>
+          post.id === postId
+            ? {
+                ...post,
+                comments: post.comments.filter(
+                  (c) => c.timestamp !== comment.timestamp
+                ), // Filter out deleted comment
+              }
+            : post
+        )
+      );
+    } catch (error) {
+      console.error("Error deleting comment: ", error);
+    }
+  };
+
   const handleShowCommentsToggle = (postId) => {
     setShowComments((prevState) => ({
       ...prevState,
-      [postId]: !prevState[postId], // Toggle the visibility for the specific post
+      [postId]: !prevState[postId],
     }));
   };
 
-  // Fetch posts and set user when component mounts
   useEffect(() => {
     const auth = getAuth();
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
-        setCurrentUser(user.uid); // Store user UID
-        getPosts(); // Fetch posts
-        getUsers(); // Fetch usernames and profile pictures
+        setCurrentUser(user.uid);
+        getPosts();
+        getUsers();
       } else {
         console.log("No authenticated user.");
       }
     });
 
-    return () => unsubscribe(); // Cleanup on unmount
+    return () => unsubscribe();
   }, []);
 
   if (loading) {
     return (
       <div className="flex justify-center items-center h-screen">
-        <div className="text-lg font-semibold text-gray-600">Loading posts...</div>
+        <div className="text-lg font-semibold text-gray-600">
+          Loading posts...
+        </div>
       </div>
     );
   }
 
   return (
     <div className="flex justify-between">
-      <div className="w-1/4">
+      <div className="w-1/5">
         <Sidebar />
       </div>
       <div className="w-3/5 p-6">
@@ -155,35 +185,55 @@ const Home = () => {
           <h1 className="text-3xl font-bold mb-6 text-gray-800">All Posts</h1>
         </div>
 
-        {/* Display all posts */}
         <div className="space-y-6">
           {posts.map((post) => (
             <div key={post.id} className="w-1/2 p-4 mx-auto">
               <div className="flex items-center mb-2">
-                {/* Display profile picture */}
                 <img
                   className="rounded-full w-8 mr-2"
-                  src={users[post.userId]?.profilePicURL || "/default-profile-pic.png"} // Fallback profile pic
+                  src={
+                    users[post.userId]?.profilePicURL ||
+                    "/default-profile-pic.png"
+                  }
                   alt="Profile Pic"
                 />
-                <p className="text-sm text-gray-500 cursor-pointer">{users[post.userId]?.username || "Unknown User"}</p>
+                <p className="text-sm text-gray-500 cursor-pointer">
+                  {users[post.userId]?.username || "Unknown User"}
+                </p>
               </div>
               <hr />
-              {post.image && <img src={post.image} alt="Post" className="w-full object-cover my-4" />}
+              {post.image && (
+                <img
+                  src={post.image}
+                  alt="Post"
+                  className="w-full object-cover my-4"
+                />
+              )}
               <hr />
               <p className="text-gray-700 font-medium my-2">{post.desc}</p>
               <div className="flex justify-between items-center">
                 <div className="flex items-center">
-                  {/* Toggle like/unlike */}
                   {post.likedBy && post.likedBy.includes(currentUser) ? (
                     <FaHeart
                       className="text-xl cursor-pointer text-red-500"
-                      onClick={() => handleLikeToggle(post.id, post.likes || 0, post.likedBy || [])}
+                      onClick={() =>
+                        handleLikeToggle(
+                          post.id,
+                          post.likes || 0,
+                          post.likedBy || []
+                        )
+                      }
                     />
                   ) : (
                     <FaRegHeart
                       className="text-xl cursor-pointer"
-                      onClick={() => handleLikeToggle(post.id, post.likes || 0, post.likedBy || [])}
+                      onClick={() =>
+                        handleLikeToggle(
+                          post.id,
+                          post.likes || 0,
+                          post.likedBy || []
+                        )
+                      }
                     />
                   )}
                   <span className="ml-2 text-sm text-gray-600">
@@ -191,15 +241,19 @@ const Home = () => {
                   </span>
                 </div>
                 <div className="flex items-center">
-                  <FaRegCommentAlt className="text-xl cursor-pointer" onClick={() => handleShowCommentsToggle(post.id)} />
+                  <FaRegCommentAlt
+                    className="text-xl cursor-pointer"
+                    onClick={() => handleShowCommentsToggle(post.id)}
+                  />
                   <span className="ml-2 text-sm text-gray-600">
                     {post.comments ? post.comments.length : 0}{" "}
-                    {post.comments && post.comments.length === 1 ? "Comment" : "Comments"}
+                    {post.comments && post.comments.length === 1
+                      ? "Comment"
+                      : "Comments"}
                   </span>
                 </div>
               </div>
 
-              {/* Comment input and submit button */}
               {showComments[post.id] && (
                 <div className="mt-4">
                   {post.comments && post.comments.length > 0 && (
@@ -208,13 +262,29 @@ const Home = () => {
                         <div key={index} className="flex items-start space-x-2">
                           <img
                             className="rounded-full w-6"
-                            src={users[comment.commentedBy]?.profilePicURL || "/default-profile-pic.png"}
+                            src={
+                              users[comment.commentedBy]?.profilePicURL ||
+                              "/default-profile-pic.png"
+                            }
                             alt="Commenter Pic"
                           />
                           <div>
-                            <p className="text-sm font-semibold">{users[comment.commentedBy]?.username || "Unknown User"}</p>
-                            <p className="text-xs text-gray-600">{comment.text}</p>
+                            <p className="text-sm font-semibold">
+                              {users[comment.commentedBy]?.username ||
+                                "Unknown User"}
+                            </p>
+                            <p className="text-xs text-gray-600">
+                              {comment.text}
+                            </p>
                           </div>
+                          {comment.commentedBy === currentUser && (
+                            <FaTrashAlt
+                              className="text-red-500 cursor-pointer"
+                              onClick={() =>
+                                handleDeleteComment(post.id, comment)
+                              }
+                            />
+                          )}
                         </div>
                       ))}
                     </div>
@@ -223,16 +293,18 @@ const Home = () => {
                   <div className="flex items-center mt-4">
                     <input
                       type="text"
+                      className="border border-gray-300 rounded-l-md px-4 py-2 w-full"
+                      placeholder="Add a comment..."
                       value={commentText[post.id] || ""}
                       onChange={(e) => handleCommentChange(e, post.id)}
-                      className="border border-gray-300 rounded px-4 py-2 w-full"
-                      placeholder="Add a comment..."
                     />
                     <button
-                      onClick={() => handleAddComment(post.id, post.comments || [])}
-                      className="bg-blue-500 text-white px-4 py-2 ml-2 rounded"
+                      onClick={() =>
+                        handleAddComment(post.id, post.comments || [])
+                      }
+                      className="bg-blue-500 text-white px-4 py-2 rounded-r-md"
                     >
-                      Post
+                      Comment
                     </button>
                   </div>
                 </div>
@@ -241,7 +313,7 @@ const Home = () => {
           ))}
         </div>
       </div>
-      <div className="w-1/4">
+      <div className="w-1/5">
         <RightSidebar />
       </div>
     </div>
